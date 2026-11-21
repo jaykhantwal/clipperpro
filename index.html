@@ -258,7 +258,7 @@ body.recording .toast{display:none}
 </head>
 <body>
 <header>
-  <h1>🎬 Clip Studio Pro <span style="font-size:12px;font-weight:700;color:#111;background:#ffd400;border-radius:999px;padding:2px 10px;vertical-align:middle;-webkit-text-fill-color:#111">v24 · censor boxes</span></h1>
+  <h1>🎬 Clip Studio Pro <span style="font-size:12px;font-weight:700;color:#111;background:#ffd400;border-radius:999px;padding:2px 10px;vertical-align:middle;-webkit-text-fill-color:#111">v25 · video load fix</span></h1>
   <p>Find the best moments, add a streamer facecam, color grade, add effects, a streamer name bar and animated captions, and translate them to English.</p>
 </header>
 
@@ -319,6 +319,8 @@ body.recording .toast{display:none}
           <button class="mini" id="setEnd">Use current time as end</button></div>
       </div>
       <label class="chk"><input type="checkbox" id="loop" checked> Loop the clip</label>
+      <label>Player type (agar video load na ho to dusra chuniye)</label>
+      <select id="yt_host"><option value="standard" selected>Normal YouTube player (pehle ye try kijiye)</option><option value="privacy">Privacy player (youtube-nocookie)</option></select>
       <div style="margin-top:12px"><button class="pri" id="load" style="width:100%">Load clip</button></div>
       <label class="chk"><input type="checkbox" id="lite" checked> Smooth mode (turns off animated grain, light leak and glitch)</label>
       <div class="hint">Hours work too, like 1:23:45. A stream that is still live stutters when you jump around in it, so use the replay link after the stream has ended. If playback is still choppy, turn off the facecam while you pick times (Layout tab), because it runs a second copy of the video.</div>
@@ -760,6 +762,7 @@ let segsAll=[],picks=[],plOn=false,plList=[],plI=0;
 let recFinish=null,recCancel=false,recBusy=false;
 let ltKey='';
 let wantPlay=false,ccAt=0;
+function ytHostVal(){return $('yt_host').value==='privacy'?'https://www.youtube-nocookie.com':'https://www.youtube.com'}
 function ytCC(pl){
   if(!pl)return;
   const on=$('yt_cc').checked&&pl===player;
@@ -1185,6 +1188,15 @@ LIVE.forEach(id=>$(id).addEventListener('input',applyAll));
 ['caps','rel','start','n'].forEach(id=>$(id).addEventListener('input',parseCaps));
 $('end').addEventListener('input',()=>{applyAll();parseCaps()});
 $('yt_cc').addEventListener('change',()=>ytCC(player));
+$('yt_host').addEventListener('change',()=>{
+  try{if(player&&player.destroy)player.destroy()}catch(_){}
+  try{if(camPlayer&&camPlayer.destroy)camPlayer.destroy()}catch(_){}
+  player=null;ready=false;playing=false;camPlayer=null;camReady=false;camId=null;curId=null;
+  if(!$('yt')){const d=document.createElement('div');d.id='yt';$('vwrap').insertBefore(d,$('cens'))}
+  if(!$('yt2')){const d=document.createElement('div');d.id='yt2';$('camv').appendChild(d)}
+  const id=vid($('url').value);
+  if(id){toast('Player badal gaya, video dobara load ho raha hai');loadClip(id)}
+});
 $('hl2').addEventListener('input',()=>{$('hl').value=$('hl2').value;applyAll()});
 $('cta_shuf').onclick=()=>{ctaSig='';toast('Button times shuffled 🎲')};
 $('cpanel').addEventListener('input',()=>{$('split').value=100-(+$('cpanel').value);applyAll()});
@@ -1315,7 +1327,7 @@ function loadCam(id){
   }
   if(camPlayer)return;
   camPlayer=new YT.Player('yt2',{
-    host:'https://www.youtube-nocookie.com',
+    host:ytHostVal(),
     videoId:id,
     playerVars:playerVars({mute:1}),
     events:{
@@ -1337,7 +1349,7 @@ function loadClip(id){
   }
   if(player)return;
   player=new YT.Player('yt',{
-    host:'https://www.youtube-nocookie.com',
+    host:ytHostVal(),
     videoId:id,
     playerVars:playerVars(),
     events:{
@@ -1529,26 +1541,4 @@ function enterRec(){
   if(pickOn){pickOn=false;$('pick').style.display='none';$('pickbtn').textContent='🎯 Pick facecam area'}
   const rw=Math.max(240,Math.min(innerHeight*9/16,innerWidth-190,1080));
   const ph=$('phone');ph.style.setProperty('--rw',rw+'px');ph.classList.add('rec');
-  document.body.classList.add('recording');
-  const b=$('recbar');b.style.display='flex';b.style.left=(rw+12)+'px';
-  window.scrollTo(0,0);
-  setTimeout(applyAll,80);
-}
-function exitRec(){
-  $('phone').classList.remove('rec');document.body.classList.remove('recording');
-  $('recbar').style.display='none';setTimeout(applyAll,80);
-}
-function dl(blob,name){
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000);
-}
-async function recordOne(stream,mime,br){
-  const chunks=[];
-  const mr=new MediaRecorder(stream,Object.assign({videoBitsPerSecond:br,audioBitsPerSecond:192000},mime?{mimeType:mime}:{}));
-  mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
-  const done=new Promise(r=>{mr.onstop=r});
-  userPause();
-  await sleep(300);
-  jump(S());await sleep(900);
-  const started=new 
+  document.body.classList
